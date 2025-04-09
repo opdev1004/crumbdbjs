@@ -1,0 +1,5 @@
+{
+  "verbose": true,
+  "collectCoverage": true,
+  "testMatch": ["<rootDir>/test/**/*.js"]
+}

@@ -1,0 +1,12 @@
+coverage/
+pack/
+documents/
+test/
+src/
+.git/
+.editorconfig
+.gitignore
+jest.config.js
+webpack.config.js
+babel.config.json
+jest.config.json

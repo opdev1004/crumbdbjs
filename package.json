@@ -1,0 +1,40 @@
+{
+  "name": "crumbdb",
+  "version": "0.0.3",
+  "description": "DBMS based on JSON files in javascript. CrumbDB is designed and built for solving a problem with data file size limits.",
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": {
+    "totjs": "dist/index.js"
+  },
+  "scripts": {
+    "pack": "node pack/index.js",
+    "test": "jest",
+    "release": "npm run pack && npm publish"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/opdev1004/crumbdbjs.git"
+  },
+  "keywords": [
+    "data store",
+    "data management",
+    "data manager",
+    "database",
+    "IO system"
+  ],
+  "author": "Victor Chanil Park",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/opdev1004/crumbdbjs/issues"
+  },
+  "homepage": "https://github.com/opdev1004/crumbdbjs#readme",
+  "devDependencies": {
+    "@babel/core": "^7.26.10",
+    "@babel/preset-env": "^7.26.9",
+    "jest": "^29.7.0"
+  },
+  "dependencies": {
+    "chalk": "^5.4.1"
+  }
+}
