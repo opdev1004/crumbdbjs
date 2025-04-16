@@ -1,6 +1,6 @@
 {
   "name": "crumbdb",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "DBMS based on JSON files in javascript. CrumbDB is designed and built for solving a problem with data file size limits.",
   "main": "dist/index.js",
   "type": "module",

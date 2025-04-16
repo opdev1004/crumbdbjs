@@ -1,22 +1,23 @@
 import fsp from "fs/promises";
 import path from "path";
-import { Semaphore } from './semaphore.js';
+import { getFileLock } from './getFileLock.js';
 
 export class CrumbDB
 {
     constructor ()
     {
-        this.semaphore = new Semaphore(1);
+        this.fileLocks = new Map();
     }
 
     async insert (dirname, keyname, value, encoding = 'utf8')
     {
-        await this.semaphore.acquire();
+        const filename = path.join(dirname, `${keyname}.json`);
+        const lock = getFileLock(filename, this.fileLocks);
+        await lock.acquire();
 
         try
         {
             await fsp.mkdir(dirname, { recursive: true });
-            const filename = path.join(dirname, `${keyname}.json`);
             const json = JSON.stringify({ [keyname]: value });
             await fsp.writeFile(filename, json, encoding);
             return true;
@@ -27,16 +28,18 @@ export class CrumbDB
         }
         finally
         {
-            this.semaphore.release();
+            await lock.release();
         }
     }
 
     async get (dirname, keyname, encoding = 'utf8')
     {
-        await this.semaphore.acquire();
+        const filename = path.join(dirname, `${keyname}.json`);
+        const lock = getFileLock(filename, this.fileLocks);
+        await lock.acquire();
+
         try
         {
-            const filename = path.join(dirname, `${keyname}.json`);
             const content = await fsp.readFile(filename, encoding);
             const data = JSON.parse(content);
             return data[keyname] ?? '';
@@ -47,16 +50,17 @@ export class CrumbDB
         }
         finally
         {
-            this.semaphore.release();
+            lock.release();
         }
     }
 
     async remove (dirname, keyname)
     {
-        await this.semaphore.acquire();
+        const filename = path.join(dirname, `${keyname}.json`);
+        const lock = getFileLock(filename, this.fileLocks);
+        await lock.acquire();
         try
         {
-            const filename = path.join(dirname, `${keyname}.json`);
             await fsp.unlink(filename);
             return true;
         }
@@ -66,13 +70,12 @@ export class CrumbDB
         }
         finally
         {
-            this.semaphore.release();
+            lock.release();
         }
     }
 
     async getAll (dirname, encoding = 'utf8')
     {
-        await this.semaphore.acquire();
         try
         {
             const result = {};
@@ -82,6 +85,8 @@ export class CrumbDB
             for (const file of jsonFiles)
             {
                 const filename = path.join(dirname, file);
+                const lock = getFileLock(filename, this.fileLocks);
+                await lock.acquire();
 
                 try
                 {
@@ -101,6 +106,10 @@ export class CrumbDB
                 {
                     result[path.basename(file, '.json')] = '';
                 }
+                finally
+                {
+                    lock.release();
+                }
             }
 
             return result;
@@ -109,15 +118,10 @@ export class CrumbDB
         {
             return {};
         }
-        finally
-        {
-            this.semaphore.release();
-        }
     }
 
     async getMultiple (dirname, position, count, encoding = 'utf8')
     {
-        await this.semaphore.acquire();
         try
         {
             const result = {};
@@ -128,6 +132,8 @@ export class CrumbDB
             for (const file of selected)
             {
                 const filename = path.join(dirname, file);
+                const lock = getFileLock(filename, this.fileLocks);
+                await lock.acquire();
 
                 try
                 {
@@ -147,6 +153,10 @@ export class CrumbDB
                 {
                     result[path.basename(file, '.json')] = '';
                 }
+                finally
+                {
+                    lock.release();
+                }
             }
 
             return result;
@@ -154,10 +164,6 @@ export class CrumbDB
         catch
         {
             return {};
-        }
-        finally
-        {
-            this.semaphore.release();
         }
     }
 }
