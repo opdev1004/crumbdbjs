@@ -1,15 +1,15 @@
 import fs from 'fs/promises';
-import { CrumbDB } from '../src/index.js';
+import { CrumbFiles } from '../src/index.js';
 
-const TEST_DIR = './testdata';
+const TEST_DIR = './testdata/crumbdb';
 
-describe('CrumbDB', () =>
+describe('CrumbFiles', () =>
 {
     let db;
 
     beforeEach(async () =>
     {
-        db = new CrumbDB();
+        db = new CrumbFiles();
         await fs.rm(TEST_DIR, { recursive: true, force: true });
     });
 

@@ -1,7 +1,7 @@
 {
   "name": "crumbdb",
-  "version": "0.1.0",
-  "description": "DBMS based on JSON files in javascript. CrumbDB is designed and built for solving a problem with data file size limits.",
+  "version": "0.2.0",
+  "description": "Document DBMS in Javascript. CrumbDB is designed and built for solving a problem with data file size limits.",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
@@ -17,6 +17,7 @@
     "url": "git+https://github.com/opdev1004/crumbdbjs.git"
   },
   "keywords": [
+    "document database",
     "data store",
     "data management",
     "data manager",

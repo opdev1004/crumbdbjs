@@ -1,11 +1,12 @@
 # 🥇 CrumbDB JS
-DBMS based on JSON files in Javascript. CrumbDB is designed and built for solving a problem with data file size limits.
+Document DBMS in Javascript. CrumbDB is designed and built for solving a problem with data file size limits.
 
 ## 👨‍🏫 Notice
 
-### 🎉 Releasing version 0.1.0
+### 🎉 Releasing version 0.2.0
 PLEASE USE THE LATEST VERSION.
-- Updated lock to file based lock.
+- Added document db structured functions. So there are 2 classes. One is `CrumbFiles` which is similar as v0.1.0. Another one is `CrumbDB` which is document database structured design.
+- Now store string data value instead of assigning the data value to document name and convert that to string. Requires migration.
 
 ### 📢 Note
 Nothing for now
