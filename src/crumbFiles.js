@@ -1,6 +1,8 @@
+import fs from "fs";
 import fsp from "fs/promises";
 import path from "path";
 import { getFileLock } from './getFileLock.js';
+import yazl from "yazl";
 
 export class CrumbFiles
 {
@@ -145,4 +147,60 @@ export class CrumbFiles
             return {};
         }
     }
+
+    async backup (sourceDir, zipPath)
+    {
+        try
+        {
+            await fsp.rm(zipPath, { force: true });
+
+            const zipfile = new yazl.ZipFile();
+            const writeStream = fs.createWriteStream(zipPath);
+            const zipEnd = new Promise((resolve, reject) =>
+            {
+                zipfile.outputStream.pipe(writeStream).on('close', resolve).on('error', reject);
+            });
+
+            const walkAndAdd = async (dir) =>
+            {
+                const items = await fsp.readdir(dir, { withFileTypes: true });
+                for (const item of items)
+                {
+                    const fullPath = path.join(dir, item.name);
+                    const relPath = path.relative(sourceDir, fullPath);
+
+                    if (item.isDirectory())
+                    {
+                        await walkAndAdd(fullPath);
+                    }
+                    else if (item.name.endsWith('.json'))
+                    {
+                        const lock = getFileLock(fullPath, this.fileLocks);
+                        await lock.acquire();
+                        try
+                        {
+                            const content = await fsp.readFile(fullPath);
+                            zipfile.addBuffer(content, relPath);
+                        } finally
+                        {
+                            lock.release();
+                        }
+                    }
+                }
+            }
+
+            await walkAndAdd(sourceDir);
+            zipfile.end();
+
+            await zipEnd;
+            return true;
+        }
+        catch (error)
+        {
+            return false;
+        }
+    }
+
+
+
 }

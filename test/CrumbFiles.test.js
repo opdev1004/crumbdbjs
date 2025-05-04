@@ -1,7 +1,11 @@
-import fs from 'fs/promises';
+import fs from 'fs';
+import fsp from 'fs/promises';
+import path from 'path';
+import yauzl from 'yauzl';
 import { CrumbFiles } from '../src/index.js';
 
 const TEST_DIR = './testdata/crumbdb';
+const ZIP_PATH = './testdata/backup/crumbfiles/backup.zip';
 
 describe('CrumbFiles', () =>
 {
@@ -10,7 +14,14 @@ describe('CrumbFiles', () =>
     beforeEach(async () =>
     {
         db = new CrumbFiles();
-        await fs.rm(TEST_DIR, { recursive: true, force: true });
+        await fsp.rm(TEST_DIR, { recursive: true, force: true });
+        await fsp.rm(ZIP_PATH, { force: true });
+        await fsp.mkdir(path.dirname(ZIP_PATH), { recursive: true });
+    });
+
+    afterEach(async () =>
+    {
+        await fsp.rm(ZIP_PATH, { force: true });
     });
 
     test('insert and get', async () =>
@@ -80,5 +91,42 @@ describe('CrumbFiles', () =>
     {
         const result = await db.getMultiple('./no-folder', 0, 3);
         expect(result).toEqual({});
+    });
+
+
+    test('backup creates zip with all .json files', async () =>
+    {
+        await db.insert(TEST_DIR, 'doc1', 'value1');
+        await db.insert(TEST_DIR, 'doc2', 'value2');
+
+        const success = await db.backup(TEST_DIR, ZIP_PATH);
+        expect(success).toBe(true);
+
+        const exists = fs.existsSync(ZIP_PATH);
+        expect(exists).toBe(true);
+
+        const entryNames = [];
+
+        await new Promise((resolve, reject) =>
+        {
+            yauzl.open(ZIP_PATH, { lazyEntries: true }, (err, zipfile) =>
+            {
+                if (err) return reject(err);
+
+                zipfile.readEntry();
+
+                zipfile.on('entry', entry =>
+                {
+                    entryNames.push(entry.fileName);
+                    zipfile.readEntry();
+                });
+
+                zipfile.on('end', resolve);
+                zipfile.on('error', reject);
+            });
+        });
+
+        expect(entryNames).toContain('doc1.json');
+        expect(entryNames).toContain('doc2.json');
     });
 });

@@ -10,3 +10,4 @@ jest.config.js
 webpack.config.js
 babel.config.json
 jest.config.json
+testdata/

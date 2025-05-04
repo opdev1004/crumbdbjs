@@ -3,10 +3,10 @@ Document DBMS in Javascript. CrumbDB is designed and built for solving a problem
 
 ## 👨‍🏫 Notice
 
-### 🎉 Releasing version 0.2.0
+### 🎉 Releasing version 0.3.1
 PLEASE USE THE LATEST VERSION.
-- Added document db structured functions. So there are 2 classes. One is `CrumbFiles` which is similar as v0.1.0. Another one is `CrumbDB` which is document database structured design.
-- Now store string data value instead of assigning the data value to document name and convert that to string. Requires migration.
+- Added backup function that works with the file locker.
+- Removed test data from the package.
 
 ### 📢 Note
 Nothing for now

@@ -1,6 +1,6 @@
 {
   "name": "crumbdb",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "description": "Document DBMS in Javascript. CrumbDB is designed and built for solving a problem with data file size limits.",
   "main": "dist/index.js",
   "type": "module",
@@ -17,6 +17,7 @@
     "url": "git+https://github.com/opdev1004/crumbdbjs.git"
   },
   "keywords": [
+    "NoSQL",
     "document database",
     "data store",
     "data management",
@@ -36,6 +37,8 @@
     "jest": "^29.7.0"
   },
   "dependencies": {
-    "chalk": "^5.4.1"
+    "chalk": "^5.4.1",
+    "yauzl": "^3.2.0",
+    "yazl": "^3.3.1"
   }
 }
