@@ -1,8 +1,14 @@
 import fs from "fs";
 import fsp from "fs/promises";
 import path from "path";
-import { getFileLock } from './getFileLock.js';
 import yazl from "yazl";
+import yauzl from 'yauzl';
+import { pipeline } from "stream";
+import { promisify } from "util";
+import { getFileLock } from './getFileLock.js';
+import { fileExists } from './fsHelper.js';
+
+const pipelineAsync = promisify(pipeline);
 
 export class CrumbDB
 {
@@ -11,7 +17,7 @@ export class CrumbDB
         this.fileLocks = new Map();
     }
 
-    async insert (dirname, databasename, collectionname, documentname, value, encoding = 'utf8')
+    async add (dirname, databasename, collectionname, documentname, value, encoding = 'utf8')
     {
         const collectionDirname = path.join(dirname, databasename, collectionname);
         const filename = path.join(collectionDirname, `${documentname}.json`);
@@ -21,8 +27,43 @@ export class CrumbDB
         try
         {
             await fsp.mkdir(collectionDirname, { recursive: true });
+
+            if (await fileExists(filename)) return false;
+
             await fsp.writeFile(filename, value, encoding);
             return true;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            await lock.release();
+        }
+    }
+
+
+    async update (dirname, databasename, collectionname, documentname, value, encoding = 'utf8')
+    {
+        const collectionDirname = path.join(dirname, databasename, collectionname);
+        const filename = path.join(collectionDirname, `${documentname}.json`);
+        const lock = getFileLock(filename, this.fileLocks);
+        await lock.acquire();
+
+        try
+        {
+            await fsp.mkdir(collectionDirname, { recursive: true });
+
+            if (await fileExists(filename))
+            {
+                await fsp.writeFile(filename, value, encoding);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
         catch
         {
@@ -207,7 +248,67 @@ export class CrumbDB
         }
     }
 
+    async restore (zipPath, destDir)
+    {
+        return new Promise((resolve, reject) =>
+        {
+            yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) =>
+            {
+                if (err) return reject(err);
 
+                zipfile.readEntry();
 
+                zipfile.on("entry", async (entry) =>
+                {
+                    if (/\/$/.test(entry.fileName))
+                    {
+                        const dirPath = path.join(destDir, entry.fileName);
+                        await fsp.mkdir(dirPath, { recursive: true });
+                        zipfile.readEntry();
+                        return;
+                    }
+
+                    const destPath = path.join(destDir, entry.fileName);
+                    const lock = getFileLock(destPath, this.fileLocks);
+                    await lock.acquire();
+
+                    try
+                    {
+                        await fsp.mkdir(path.dirname(destPath), { recursive: true });
+
+                        zipfile.openReadStream(entry, async (err, readStream) =>
+                        {
+                            if (err)
+                            {
+                                await lock.release();
+                                return reject(err);
+                            }
+
+                            const writeStream = fs.createWriteStream(destPath);
+                            try
+                            {
+                                await pipelineAsync(readStream, writeStream);
+                            } catch (streamErr)
+                            {
+                                await lock.release();
+                                return reject(streamErr);
+                            }
+
+                            await lock.release();
+                            zipfile.readEntry();
+                        });
+                    }
+                    catch (e)
+                    {
+                        await lock.release();
+                        return reject(e);
+                    }
+                });
+
+                zipfile.on("end", () => resolve(true));
+                zipfile.on("error", reject);
+            });
+        }).catch(() => false);
+    }
 
 }

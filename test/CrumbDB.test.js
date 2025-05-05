@@ -4,7 +4,7 @@ import path from 'path';
 import yauzl from 'yauzl';
 import { CrumbDB } from '../src/index.js';
 
-const TEST_DIR = './testdata/crumbfiles';
+const TEST_DIR = './testdata/crumbdb';
 const DB_NAME = 'mydb';
 const COLLECTION = 'mycollection';
 const ZIP_PATH = './testdata/backup/crumbdb/backup.zip';
@@ -28,7 +28,7 @@ describe('CrumbDB (nested)', () =>
 
     test('insert and get document', async () =>
     {
-        const success = await db.insert(TEST_DIR, DB_NAME, COLLECTION, 'doc1', 'value1');
+        const success = await db.add(TEST_DIR, DB_NAME, COLLECTION, 'doc1', 'value1');
         expect(success).toBe(true);
 
         const value = await db.get(TEST_DIR, DB_NAME, COLLECTION, 'doc1');
@@ -43,7 +43,7 @@ describe('CrumbDB (nested)', () =>
 
     test('remove existing document', async () =>
     {
-        await db.insert(TEST_DIR, DB_NAME, COLLECTION, 'toRemove', 'bye');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'toRemove', 'bye');
         const removed = await db.remove(TEST_DIR, DB_NAME, COLLECTION, 'toRemove');
         expect(removed).toBe(true);
 
@@ -59,8 +59,8 @@ describe('CrumbDB (nested)', () =>
 
     test('getAll returns all key-value pairs', async () =>
     {
-        await db.insert(TEST_DIR, DB_NAME, COLLECTION, 'a', '1');
-        await db.insert(TEST_DIR, DB_NAME, COLLECTION, 'b', '2');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'a', '1');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'b', '2');
         const result = await db.getAll(TEST_DIR, DB_NAME, COLLECTION);
 
         expect(result).toEqual({
@@ -71,10 +71,10 @@ describe('CrumbDB (nested)', () =>
 
     test('getMultiple returns correct subset', async () =>
     {
-        await db.insert(TEST_DIR, DB_NAME, COLLECTION, 'k1', 'v1');
-        await db.insert(TEST_DIR, DB_NAME, COLLECTION, 'k2', 'v2');
-        await db.insert(TEST_DIR, DB_NAME, COLLECTION, 'k3', 'v3');
-        await db.insert(TEST_DIR, DB_NAME, COLLECTION, 'k4', 'v4');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'k1', 'v1');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'k2', 'v2');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'k3', 'v3');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'k4', 'v4');
 
         const subset = await db.getMultiple(TEST_DIR, DB_NAME, COLLECTION, 1, 2);
         const keys = Object.keys(subset);
@@ -98,8 +98,8 @@ describe('CrumbDB (nested)', () =>
 
     test('backup creates zip with all .json files', async () =>
     {
-        await db.insert(TEST_DIR, DB_NAME, COLLECTION, 'doc1', 'value1');
-        await db.insert(TEST_DIR, DB_NAME, COLLECTION, 'doc2', 'value2');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'doc1', 'value1');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'doc2', 'value2');
 
         const success = await db.backup(TEST_DIR, ZIP_PATH);
         expect(success).toBe(true);
@@ -137,4 +137,28 @@ describe('CrumbDB (nested)', () =>
         expect(entryNames).toContain(normalize(path.join(DB_NAME, COLLECTION, 'doc1.json')));
         expect(entryNames).toContain(normalize(path.join(DB_NAME, COLLECTION, 'doc2.json')));
     });
+
+
+    test('restore restores all files from zip', async () =>
+    {
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'doc1', 'value1');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'doc2', 'value2');
+
+        const backupSuccess = await db.backup(TEST_DIR, ZIP_PATH);
+        expect(backupSuccess).toBe(true);
+
+        await fsp.rm(TEST_DIR, { recursive: true, force: true });
+        expect(fs.existsSync(TEST_DIR)).toBe(false);
+
+        const restoreSuccess = await db.restore(ZIP_PATH, TEST_DIR);
+        expect(restoreSuccess).toBe(true);
+
+        const doc1 = await db.get(TEST_DIR, DB_NAME, COLLECTION, 'doc1');
+        const doc2 = await db.get(TEST_DIR, DB_NAME, COLLECTION, 'doc2');
+
+        expect(doc1).toBe('value1');
+        expect(doc2).toBe('value2');
+    });
+
+
 });
