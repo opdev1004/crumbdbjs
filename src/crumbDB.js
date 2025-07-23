@@ -7,22 +7,25 @@ import { pipeline } from "stream";
 import { promisify } from "util";
 import { getFileLock } from './getFileLock.js';
 import { fileExists } from './fsHelper.js';
+import { Semaphore } from './semaphore.js';
 
 const pipelineAsync = promisify(pipeline);
 
 export class CrumbDB
 {
-    constructor ()
+    constructor(iomax = 512)
     {
         this.fileLocks = new Map();
+        this.ioSemaphore = new Semaphore(iomax);
     }
 
-    async add (dirname, databasename, collectionname, documentname, value, encoding = 'utf8')
+    async add(dirname, databasename, collectionname, documentname, value, encoding = 'utf8')
     {
         const collectionDirname = path.join(dirname, databasename, collectionname);
-        const filename = path.join(collectionDirname, `${documentname}.json`);
+        const filename = path.join(collectionDirname, `${ documentname }.json`);
         const lock = getFileLock(filename, this.fileLocks);
         await lock.acquire();
+        await this.ioSemaphore.acquire();
 
         try
         {
@@ -39,17 +42,19 @@ export class CrumbDB
         }
         finally
         {
+            await this.ioSemaphore.release();
             await lock.release();
         }
     }
 
 
-    async update (dirname, databasename, collectionname, documentname, value, encoding = 'utf8')
+    async update(dirname, databasename, collectionname, documentname, value, encoding = 'utf8')
     {
         const collectionDirname = path.join(dirname, databasename, collectionname);
-        const filename = path.join(collectionDirname, `${documentname}.json`);
+        const filename = path.join(collectionDirname, `${ documentname }.json`);
         const lock = getFileLock(filename, this.fileLocks);
         await lock.acquire();
+        await this.ioSemaphore.acquire();
 
         try
         {
@@ -71,16 +76,18 @@ export class CrumbDB
         }
         finally
         {
+            await this.ioSemaphore.release();
             await lock.release();
         }
     }
 
-    async get (dirname, databasename, collectionname, documentname, encoding = 'utf8')
+    async get(dirname, databasename, collectionname, documentname, encoding = 'utf8')
     {
         const collectionDirname = path.join(dirname, databasename, collectionname);
-        const filename = path.join(collectionDirname, `${documentname}.json`);
+        const filename = path.join(collectionDirname, `${ documentname }.json`);
         const lock = getFileLock(filename, this.fileLocks);
         await lock.acquire();
+        await this.ioSemaphore.acquire();
 
         try
         {
@@ -92,16 +99,19 @@ export class CrumbDB
         }
         finally
         {
-            lock.release();
+            await this.ioSemaphore.release();
+            await lock.release();
         }
     }
 
-    async remove (dirname, databasename, collectionname, documentname)
+    async remove(dirname, databasename, collectionname, documentname)
     {
         const collectionDirname = path.join(dirname, databasename, collectionname);
-        const filename = path.join(collectionDirname, `${documentname}.json`);
+        const filename = path.join(collectionDirname, `${ documentname }.json`);
         const lock = getFileLock(filename, this.fileLocks);
         await lock.acquire();
+        await this.ioSemaphore.acquire();
+
         try
         {
             await fsp.unlink(filename);
@@ -113,11 +123,12 @@ export class CrumbDB
         }
         finally
         {
-            lock.release();
+            await this.ioSemaphore.release();
+            await lock.release();
         }
     }
 
-    async getAll (dirname, databasename, collectionname, encoding = 'utf8')
+    async getAll(dirname, databasename, collectionname, encoding = 'utf8')
     {
         try
         {
@@ -131,6 +142,7 @@ export class CrumbDB
                 const filename = path.join(collectionDirname, file);
                 const lock = getFileLock(filename, this.fileLocks);
                 await lock.acquire();
+                await this.ioSemaphore.acquire();
 
                 try
                 {
@@ -143,7 +155,8 @@ export class CrumbDB
                 }
                 finally
                 {
-                    lock.release();
+                    await this.ioSemaphore.release();
+                    await lock.release();
                 }
             }
 
@@ -155,7 +168,7 @@ export class CrumbDB
         }
     }
 
-    async getMultiple (dirname, databasename, collectionname, position, count, encoding = 'utf8')
+    async getMultiple(dirname, databasename, collectionname, position, count, encoding = 'utf8')
     {
         try
         {
@@ -170,6 +183,7 @@ export class CrumbDB
                 const filename = path.join(collectionDirname, file);
                 const lock = getFileLock(filename, this.fileLocks);
                 await lock.acquire();
+                await this.ioSemaphore.acquire();
 
                 try
                 {
@@ -182,7 +196,8 @@ export class CrumbDB
                 }
                 finally
                 {
-                    lock.release();
+                    await this.ioSemaphore.release();
+                    await lock.release();
                 }
             }
 
@@ -194,7 +209,7 @@ export class CrumbDB
         }
     }
 
-    async backup (sourceDir, zipPath)
+    async backup(sourceDir, zipPath)
     {
         try
         {
@@ -223,6 +238,8 @@ export class CrumbDB
                     {
                         const lock = getFileLock(fullPath, this.fileLocks);
                         await lock.acquire();
+                        await this.ioSemaphore.acquire();
+
                         try
                         {
                             const content = await fsp.readFile(fullPath);
@@ -230,7 +247,8 @@ export class CrumbDB
                         }
                         finally
                         {
-                            lock.release();
+                            await this.ioSemaphore.release();
+                            await lock.release();
                         }
                     }
                 }
@@ -248,7 +266,7 @@ export class CrumbDB
         }
     }
 
-    async restore (zipPath, destDir)
+    async restore(zipPath, destDir)
     {
         return new Promise((resolve, reject) =>
         {
@@ -271,6 +289,7 @@ export class CrumbDB
                     const destPath = path.join(destDir, entry.fileName);
                     const lock = getFileLock(destPath, this.fileLocks);
                     await lock.acquire();
+                    await this.ioSemaphore.acquire();
 
                     try
                     {
@@ -280,6 +299,7 @@ export class CrumbDB
                         {
                             if (err)
                             {
+                                await this.ioSemaphore.release();
                                 await lock.release();
                                 return reject(err);
                             }
@@ -288,18 +308,22 @@ export class CrumbDB
                             try
                             {
                                 await pipelineAsync(readStream, writeStream);
-                            } catch (streamErr)
+                            }
+                            catch (streamErr)
                             {
+                                await this.ioSemaphore.release();
                                 await lock.release();
                                 return reject(streamErr);
                             }
 
+                            await this.ioSemaphore.release();
                             await lock.release();
                             zipfile.readEntry();
                         });
                     }
                     catch (e)
                     {
+                        await this.ioSemaphore.release();
                         await lock.release();
                         return reject(e);
                     }

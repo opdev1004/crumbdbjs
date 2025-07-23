@@ -1,15 +1,17 @@
 # 🥇 CrumbDB JS
+
 Document DBMS in Javascript. Crumbdb JS is a Node.js-based minimalistic JSON database library that stores documents as individual JSON files. It supports safe concurrent access using async file locking and includes optional backup functionality via ZIP compression. CrumbDB is designed and built for solving a problem with data file size limits.
 
 ## 👨‍🏫 Notice
 
-### 🎉 Releasing version 0.4.0
+### 🎉 Releasing version 0.5.0
+
 PLEASE USE THE LATEST VERSION.
-- Changed function name `insert` to `add`
-- `update` function is added to update data
-- `restore` function is added to restore data from zip file
+
+- Added number of file descriptor limit and batching system. The default is 512.
 
 ### 📢 Note
+
 Nothing for now
 
 ## ▶️ Installation
@@ -25,13 +27,16 @@ npm run test
 ```
 
 ## 📖 Documents
+
 CrumbDB or CrumbFiles can be used for document database management.
 
 ### CrumbDB Examples
+
 ```
 import { CrumbDB } from 'crumbdbjs';
 
-// Need an instance that will manage file locking
+// Need an instance that will manage file locking, you can pass number of file descriptor limit, default is 512
+// For example, global.crumbdb = new CrumbDB(256);
 global.crumbdb = new CrumbDB();
 
 async function example()
@@ -45,7 +50,7 @@ async function example()
 
     // Get data
     await global.crumbdb.get(dirname, databasename, collectionname, documentname1, encoding = 'utf8');
-    
+
     // Get all data
     await global.crumbdb.getAll(dirname, databasename, collectionname, encoding = 'utf8')
 
@@ -62,6 +67,7 @@ async function example()
     await global.crumbdb.restore (zipPath, destDir)
 }
 ```
+
 ### CrumbFiles Examples
 
 ```
@@ -81,7 +87,7 @@ async function example()
 
     // Get data
     await global.crumbfiles.get(dirname, documentname1, encoding = 'utf8');
-    
+
     // Get all data
     await global.crumbfiles.getAll(dirname, encoding = 'utf8')
 
@@ -98,7 +104,6 @@ async function example()
     await global.crumbfiles.restore (zipPath, destDir)
 }
 ```
-
 
 ## 💪 Support CrumbDB JS
 

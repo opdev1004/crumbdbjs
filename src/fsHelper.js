@@ -1,12 +1,13 @@
 import fsp from "fs/promises";
 
-export async function fileExists (filepath)
+export async function fileExists(filepath)
 {
     try
     {
         await fsp.access(filepath);
         return true;
-    } catch
+    }
+    catch
     {
         return false;
     }
