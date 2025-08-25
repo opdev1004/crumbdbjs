@@ -4,11 +4,14 @@ Document DBMS in Javascript. Crumbdb JS is a Node.js-based minimalistic JSON dat
 
 ## 👨‍🏫 Notice
 
-### 🎉 Releasing version 0.5.0
+### 🎉 Releasing version 0.7.0
 
 PLEASE USE THE LATEST VERSION.
 
-- Added number of file descriptor limit and batching system. The default is 512.
+- Upgraded `getMultiple()`, now it returns `{ data: {...}, meta: { DBNextPosition: position, DBEnd: true } }`.
+- Added `getMultipleByKeyword()` and `getMultipleByKeywords()`
+- `crumbFiles()` class is removed.
+- Fixed algorithm for `getMultiple`, `getMultipleByKeyword()` and `getMultipleByKeywords()`
 
 ### 📢 Note
 
@@ -28,7 +31,7 @@ npm run test
 
 ## 📖 Documents
 
-CrumbDB or CrumbFiles can be used for document database management.
+CrumbDB can be used for document database management.
 
 ### CrumbDB Examples
 
@@ -65,43 +68,6 @@ async function example()
 
     // Restore Data from a zip file
     await global.crumbdb.restore (zipPath, destDir)
-}
-```
-
-### CrumbFiles Examples
-
-```
-import { CrumbFiles } from 'crumbdbjs';
-
-// Need an instance that will manage file locking
-global.crumbfiles = new CrumbFiles();
-
-async function example()
-{
-    // Add data, return false when data exists
-    await global.crumbfiles.add(dirname, documentname1, value1, encoding = 'utf8');
-    await global.crumbfiles.add(dirname, documentname2, value2, encoding = 'utf8');
-
-    // Update data, return false when data does not exist
-    await global.crumbfiles.update(dirname, documentname1, value1, encoding = 'utf8');
-
-    // Get data
-    await global.crumbfiles.get(dirname, documentname1, encoding = 'utf8');
-
-    // Get all data
-    await global.crumbfiles.getAll(dirname, encoding = 'utf8')
-
-    // Get multiple data
-    await global.crumbfiles.getMultiple (dirname, position, count, encoding = 'utf8')
-
-    // Remove data
-    await global.crumbfiles.remove (dirname, documentname1)
-
-    // Backup Data as a zip file
-    await global.crumbfiles.backup (sourceDir, zipPath)
-
-    // Restore Data from a zip file
-    await global.crumbfiles.restore (zipPath, destDir)
 }
 ```
 

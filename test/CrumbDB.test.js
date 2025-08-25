@@ -76,11 +76,12 @@ describe('CrumbDB (nested)', () =>
         await db.add(TEST_DIR, DB_NAME, COLLECTION, 'k3', 'v3');
         await db.add(TEST_DIR, DB_NAME, COLLECTION, 'k4', 'v4');
 
-        const subset = await db.getMultiple(TEST_DIR, DB_NAME, COLLECTION, 1, 2);
-        const keys = Object.keys(subset);
-        expect(keys.length).toBe(2);
-        expect(Object.values(subset)).toContain('v2');
-        expect(Object.values(subset)).toContain('v3');
+        const result = await db.getMultiple(TEST_DIR, DB_NAME, COLLECTION, 1, 2);
+        expect(Object.keys(result.data).length).toBe(2);
+        const vals = Object.values(result.data);
+        expect(vals).toHaveLength(2);
+        expect(['v1', 'v2', 'v3', 'v4']).toEqual(expect.arrayContaining(vals));
+        expect(typeof result.meta.DBEnd).toBe('boolean');
     });
 
     test('getAll returns empty object when folder does not exist', async () =>
@@ -92,9 +93,97 @@ describe('CrumbDB (nested)', () =>
     test('getMultiple returns empty object when folder does not exist', async () =>
     {
         const result = await db.getMultiple('./nowhere', DB_NAME, COLLECTION, 0, 3);
-        expect(result).toEqual({});
+        expect(result).toEqual({ data: {}, meta: { DBNextPosition: 0, DBEnd: true } });
     });
 
+    test('getMultiple returns a subset and meta advances', async () =>
+    {
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'k1', 'v1');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'k2', 'v2');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'k3', 'v3');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'k4', 'v4');
+
+        const result = await db.getMultiple(TEST_DIR, DB_NAME, COLLECTION, 1, 2);
+        expect(Object.keys(result.data).length).toBe(2);
+
+        // Returned values should be from the set {v1..v4}
+        const vals = new Set(Object.values(result.data));
+        expect(['v1', 'v2', 'v3', 'v4'].some(v => vals.has(v))).toBe(true);
+
+        expect(result.meta.DBNextPosition).toBeGreaterThan(1);
+        expect(typeof result.meta.DBEnd).toBe('boolean');
+    });
+
+
+    test('getMultiple end-of-dir signals DBEnd=true', async () =>
+    {
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'a', '1');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'b', '2');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'c', '3');
+
+        const result = await db.getMultiple(TEST_DIR, DB_NAME, COLLECTION, 0, 999);
+        expect(result.meta.DBEnd).toBe(true);
+
+        const files = await fsp.readdir(path.join(TEST_DIR, DB_NAME, COLLECTION));
+        const eligible = files.filter(f => f.endsWith('.json')).length;
+        expect(result.meta.DBNextPosition).toBe(eligible);
+        expect(Object.keys(result.data).length).toBe(eligible);
+    });
+
+
+    test('getMultipleByKeyword finds basename matches', async () =>
+    {
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'apple', 'x1');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'banana', 'x2');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'appetite', 'x3');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'grape', 'x4');
+
+        const result = await db.getMultipleByKeyword(TEST_DIR, DB_NAME, COLLECTION, 'app', 0, 10);
+        const keys = Object.keys(result.data);
+        expect(keys).toEqual(expect.arrayContaining(['apple', 'appetite']));
+        expect(keys).not.toEqual(expect.arrayContaining(['banana', 'grape']));
+        expect(result.meta.DBEnd).toBe(true);
+    });
+
+    test('getMultipleByKeywords matches ANY keyword', async () =>
+    {
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'red-apple', 'v1');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'yellow-banana', 'v2');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'green-pear', 'v3');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'blueberry', 'v4');
+
+        const result = await db.getMultipleByKeywords(TEST_DIR, DB_NAME, COLLECTION, ['apple', 'banana'], 0, 10);
+        const keys = Object.keys(result.data);
+        expect(keys).toEqual(expect.arrayContaining(['red-apple', 'yellow-banana']));
+        expect(keys).not.toEqual(expect.arrayContaining(['green-pear', 'blueberry']));
+    });
+
+    test('getMultipleByKeywords paginates with DBNextPosition', async () =>
+    {
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'alpha', '1');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'alphabet', '2');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'beta', '3');
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'betamax', '4');
+
+        const res1 = await db.getMultipleByKeywords(TEST_DIR, DB_NAME, COLLECTION, ['alpha', 'beta'], 0, 2);
+        expect(Object.keys(res1.data).length).toBe(2);
+        expect(res1.meta.DBEnd).toBe(false);
+
+        const res2 = await db.getMultipleByKeywords(
+            TEST_DIR, DB_NAME, COLLECTION, ['alpha', 'beta'], res1.meta.DBNextPosition, 10
+        );
+
+        const union = [...new Set([...Object.keys(res1.data), ...Object.keys(res2.data)])];
+        expect(union).toEqual(expect.arrayContaining(['alpha', 'alphabet', 'beta', 'betamax']));
+        expect(res2.meta.DBEnd).toBe(true);
+    });
+
+    test('getMultipleByKeywords handles empty keyword list', async () =>
+    {
+        await db.add(TEST_DIR, DB_NAME, COLLECTION, 'foo', '1');
+        const result = await db.getMultipleByKeywords(TEST_DIR, DB_NAME, COLLECTION, [], 0, 5);
+        expect(result).toEqual({ data: {}, meta: { DBNextPosition: 0, DBEnd: true } });
+    });
 
     test('backup creates zip with all .json files', async () =>
     {
@@ -139,7 +228,7 @@ describe('CrumbDB (nested)', () =>
     });
 
 
-    test('restore restores all files from zip', async () =>
+    test('restore restoresultall files from zip', async () =>
     {
         await db.add(TEST_DIR, DB_NAME, COLLECTION, 'doc1', 'value1');
         await db.add(TEST_DIR, DB_NAME, COLLECTION, 'doc2', 'value2');
